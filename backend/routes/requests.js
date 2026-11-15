@@ -1,6 +1,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
-const { Request, CATEGORIES, PRIORITIES, STATUSES, UNRESOLVED } = require("../models/Request");
+const { Request, CATEGORIES, PRIORITIES, STATUSES, UNRESOLVED, OVERDUE_MS } = require("../models/Request");
 const { requireAuth, requireRole } = require("../middleware/auth");
 
 const router = express.Router();
@@ -51,13 +51,15 @@ router.get("/", async (req, res, next) => {
 });
 
 // POST /api/requests  -> submit a request
-// Students: name/room come from their account, priority starts at Medium (admin sets it).
+// Students: name/room ALWAYS come from their account (any room sent in the body is ignored),
+// so a student can't raise a complaint against someone else's room. Priority starts at Medium.
 router.post("/", async (req, res, next) => {
   try {
     const { roomLabel, studentName, category, description, priority } = req.body;
     const isAdmin = req.user.role === "admin";
+    if (!isAdmin && !req.user.roomLabel) return res.status(400).json({ error: "Your account has no room assigned. Contact the warden." });
     const doc = await Request.create({
-      roomLabel: roomLabel || (isAdmin ? "" : req.user.roomLabel),
+      roomLabel: isAdmin ? roomLabel : req.user.roomLabel,
       category,
       description,
       student: isAdmin ? null : req.user._id,
@@ -65,6 +67,69 @@ router.post("/", async (req, res, next) => {
       priority: isAdmin ? priority : "Medium",
     });
     res.status(201).json(doc);
+  } catch (e) { next(e); }
+});
+
+// GET /api/requests/stats  -> numbers for the dashboard insight cards
+router.get("/stats", async (req, res, next) => {
+  try {
+    const items = await Request.find(scope(req.user)).lean();
+    const byStatus = Object.fromEntries(STATUSES.map((s) => [s, 0]));
+    const byCategory = Object.fromEntries(CATEGORIES.map((c) => [c, 0]));
+    let resolvedCount = 0, resolveMs = 0, ratingSum = 0, ratingCount = 0, overdue = 0;
+    const now = Date.now();
+    for (const r of items) {
+      byStatus[r.status]++;
+      byCategory[r.category]++;
+      if (r.resolvedAt) { resolvedCount++; resolveMs += new Date(r.resolvedAt) - new Date(r.createdAt); }
+      if (r.rating) { ratingSum += r.rating; ratingCount++; }
+      if (UNRESOLVED.includes(r.status) && now - new Date(r.createdAt) > OVERDUE_MS[r.priority]) overdue++;
+    }
+    res.json({
+      total: items.length,
+      byStatus,
+      byCategory,
+      avgResolveHours: resolvedCount ? Math.round(resolveMs / resolvedCount / 36e5) : null,
+      avgRating: ratingCount ? Math.round((ratingSum / ratingCount) * 10) / 10 : null,
+      ratingCount,
+      overdue,
+    });
+  } catch (e) { next(e); }
+});
+
+// ---------- student-only actions on their own requests ----------
+
+async function findOwn(req, res) {
+  const doc = await findOr404(req.params.id, res);
+  if (!doc) return null;
+  if (String(doc.student) !== String(req.user._id)) { res.status(403).json({ error: "Not your request" }); return null; }
+  return doc;
+}
+
+// DELETE /api/requests/:id  -> student withdraws a request the warden hasn't started on yet
+router.delete("/:id", validId, async (req, res, next) => {
+  try {
+    if (req.user.role === "admin") return res.status(403).json({ error: "Admins close requests instead of deleting them" });
+    const doc = await findOwn(req, res);
+    if (!doc) return;
+    if (doc.status !== "Open") return res.status(409).json({ error: "Only requests that are still Open can be withdrawn" });
+    await doc.deleteOne();
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+// PATCH /api/requests/:id/rate  { rating: 1-5, feedback? }  -> student rates the fix
+router.patch("/:id/rate", validId, async (req, res, next) => {
+  try {
+    if (req.user.role === "admin") return res.status(403).json({ error: "Only the student who raised it can rate" });
+    const rating = Number(req.body.rating);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return res.status(400).json({ error: "rating must be 1 to 5" });
+    const doc = await findOwn(req, res);
+    if (!doc) return;
+    if (!["Resolved", "Closed"].includes(doc.status)) return res.status(409).json({ error: "You can rate once the request is resolved" });
+    doc.rating = rating;
+    doc.feedback = String(req.body.feedback || "").trim().slice(0, 300);
+    res.json(await doc.save());
   } catch (e) { next(e); }
 });
 

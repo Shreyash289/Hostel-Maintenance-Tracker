@@ -16,6 +16,7 @@ All rooms and students are **fictional**.
 | Login | `POST /api/auth/login`, `POST /api/auth/register` (students), `GET /api/auth/me` |
 | **Variation: unresolved by priority** | "Unresolved by priority" tab (default) → `GET /api/requests/unresolved` — Open + In Progress only, grouped Critical → High → Medium → Low, oldest first within each group |
 | **Persistence** | MongoDB data lives in the named Docker volume `mongo-data` |
+| **Room locked to account** | Students never type a room: the server always files their complaint under the room on their account (any room sent in the request is ignored) |
 | **Fictional data** | `backend/seed.js` — 1 admin, 8 students, 9 sample requests, inserted only when the DB is empty |
 
 ## Logins (fictional demo accounts)
@@ -27,6 +28,16 @@ All rooms and students are **fictional**.
 
 New students can sign up from the login screen. Admins can't sign up; they're seeded.
 Passwords are hashed with **bcrypt**, sessions use **JWT** (7-day token), and roles are enforced on the **server**: a student calling an admin route gets `403`.
+
+### Extra features
+
+- **Purple UI** with light/dark mode (toggle in the header, remembered per browser)
+- **Category picker** with icons, **progress tracker** (Open → In Progress → Resolved → Closed) on every request
+- **Overdue flag**: unresolved requests older than their target time (Critical 24h, High 48h, Medium 4d, Low 7d)
+- **Withdraw** (student): delete your own request while it is still Open → `DELETE /api/requests/:id`
+- **Rate the fix** (student): 1–5 stars + optional feedback once Resolved/Closed → `PATCH /api/requests/:id/rate`
+- **Insights tab** (admin): resolution rate, average time to resolve, average rating, status and category breakdown → `GET /api/requests/stats`
+- Sign-up checks the room format (e.g. `C-210`)
 
 ### Complaint lifecycle
 `Open` → `In Progress` → **Resolve** (admin writes what was fixed → `Resolved`) → **Close** (locked).

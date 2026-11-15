@@ -20,7 +20,7 @@ router.post("/login", async (req, res, next) => {
 router.post("/register", async (req, res, next) => {
   try {
     const { name, email, password, roomLabel } = req.body;
-    if (!roomLabel || !String(roomLabel).trim()) return res.status(400).json({ error: "Room label is required" });
+    if (!/^[A-Za-z]-?\d{2,4}$/.test(String(roomLabel || "").trim())) return res.status(400).json({ error: "Room must look like A-101" });
     if (!password || String(password).length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
     if (await User.exists({ email: String(email || "").toLowerCase().trim() })) return res.status(409).json({ error: "Email already registered" });
     const user = await User.create({ name, email, password, roomLabel, role: "student" });

@@ -25,9 +25,9 @@ const REQUESTS = [
   { email: "kabir@hostel.test", category: "Furniture", description: "Study table drawer handle broken off.", priority: "Low", status: "Open", createdAt: daysAgo(6) },
   { email: "meera@hostel.test", category: "Pest Control", description: "Cockroaches seen near the wardrobe and window.", priority: "High", status: "Open", createdAt: daysAgo(4) },
   { email: "vikram@hostel.test", category: "Cleaning", description: "Corridor outside the room not cleaned for three days.", priority: "Medium", status: "Resolved", resolutionNote: "Housekeeping cleaned the corridor; added to daily rota.", resolvedAt: daysAgo(6), createdAt: daysAgo(8) },
-  { email: "ananya@hostel.test", category: "Electrical", description: "Tube light flickering, needs replacement.", priority: "Low", status: "Closed", resolutionNote: "Replaced tube light with LED batten.", resolvedAt: daysAgo(8), closedAt: daysAgo(7), createdAt: daysAgo(10) },
+  { email: "ananya@hostel.test", category: "Electrical", description: "Tube light flickering, needs replacement.", priority: "Low", status: "Closed", resolutionNote: "Replaced tube light with LED batten.", rating: 5, feedback: "Fixed the same day, thanks!", resolvedAt: daysAgo(8), closedAt: daysAgo(7), createdAt: daysAgo(10) },
   { email: "rohan@hostel.test", category: "Plumbing", description: "Geyser not heating water at all.", priority: "Critical", status: "In Progress", createdAt: daysAgo(2) },
-  { email: "riya@hostel.test", category: "Furniture", description: "Wardrobe door hinge loose.", priority: "Low", status: "Closed", resolutionNote: "Hinge screws tightened.", resolvedAt: daysAgo(14), closedAt: daysAgo(13), createdAt: daysAgo(15) },
+  { email: "riya@hostel.test", category: "Furniture", description: "Wardrobe door hinge loose.", priority: "Low", status: "Closed", resolutionNote: "Hinge screws tightened.", rating: 4, resolvedAt: daysAgo(14), closedAt: daysAgo(13), createdAt: daysAgo(15) },
 ];
 
 module.exports = async function seedIfEmpty() {
@@ -46,6 +46,8 @@ module.exports = async function seedIfEmpty() {
       roomLabel: byEmail[email].roomLabel,
       priorityRank: PRIORITY_RANK[r.priority],
       resolutionNote: r.resolutionNote || "",
+      rating: r.rating || null,
+      feedback: r.feedback || "",
       resolvedAt: r.resolvedAt || null,
       closedAt: r.closedAt || null,
       updatedAt: r.createdAt,

@@ -32,4 +32,7 @@ export const api = {
   setStatus: (id, status) => call(`/requests/${id}/status`, body("PATCH", { status })),
   resolve: (id, note) => call(`/requests/${id}/resolve`, body("PATCH", { note })),
   close: (id, note) => call(`/requests/${id}/close`, body("PATCH", { note })),
+  stats: () => call("/requests/stats"),
+  withdraw: (id) => call(`/requests/${id}`, { method: "DELETE" }),
+  rate: (id, rating, feedback) => call(`/requests/${id}/rate`, body("PATCH", { rating, feedback })),
 };

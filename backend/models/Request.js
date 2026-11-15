@@ -8,6 +8,10 @@ const UNRESOLVED = ["Open", "In Progress"];
 // Lower rank = more urgent. Stored so MongoDB can sort by it directly.
 const PRIORITY_RANK = { Critical: 1, High: 2, Medium: 3, Low: 4 };
 
+// An unresolved request older than this is flagged "overdue" (target response time per priority).
+const H = 36e5;
+const OVERDUE_MS = { Critical: 24 * H, High: 48 * H, Medium: 96 * H, Low: 168 * H };
+
 const requestSchema = new mongoose.Schema(
   {
     roomLabel: { type: String, required: true, trim: true, uppercase: true, maxlength: 20 },
@@ -19,6 +23,8 @@ const requestSchema = new mongoose.Schema(
     priorityRank: { type: Number, default: PRIORITY_RANK.Medium },
     status: { type: String, enum: STATUSES, default: "Open" },
     resolutionNote: { type: String, trim: true, maxlength: 300, default: "" }, // what the admin did to fix it
+    rating: { type: Number, min: 1, max: 5, default: null }, // student's rating of the fix
+    feedback: { type: String, trim: true, maxlength: 300, default: "" },
     resolvedAt: { type: Date, default: null },
     closedAt: { type: Date, default: null },
   },
@@ -45,4 +51,5 @@ module.exports = {
   STATUSES,
   UNRESOLVED,
   PRIORITY_RANK,
+  OVERDUE_MS,
 };

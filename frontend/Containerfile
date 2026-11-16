@@ -1,0 +1,27 @@
+# Hostel Maintenance Tracker - web image (React built by Vite, served by Nginx)
+# Build:  podman build -t hmt-frontend:1.0 -f Containerfile .
+
+# ---- Stage 1: build the React app with Node ----
+FROM docker.io/library/node:20-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# ---- Stage 2: serve the static files with Nginx (no Node in the final image) ----
+FROM docker.io/library/nginx:1.27-alpine
+
+LABEL org.opencontainers.image.title="hmt-frontend" \
+      org.opencontainers.image.description="Hostel Maintenance Tracker web UI" \
+      org.opencontainers.image.version="1.0"
+
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
+  CMD wget -qO- http://127.0.0.1/ >/dev/null || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]
